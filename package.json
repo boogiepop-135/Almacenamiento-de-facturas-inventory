@@ -1,14 +1,20 @@
 {
   "name": "almacenamiento-facturas-monorepo",
   "version": "1.0.0",
-  "description": "Monorepo para almacenamiento de facturas - Backend y Frontend. IMPORTANTE: Configure Root Directory en Railway a 'backend' o 'frontend'",
+  "description": "Monorepo para almacenamiento de facturas - Backend y Frontend",
+  "main": "index.js",
+  "type": "module",
   "private": true,
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
   "scripts": {
-    "postinstall": "echo '⚠️  IMPORTANTE: Este es un monorepo. Configure Root Directory en Railway Settings a: backend o frontend'"
-  }
+    "start": "node index.js",
+    "build": "cd backend && npm install",
+    "postinstall": "cd backend && npm install"
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }
 
