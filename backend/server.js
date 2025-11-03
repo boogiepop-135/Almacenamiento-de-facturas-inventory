@@ -44,8 +44,12 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Configuración de MongoDB
-// Railway proporciona MONGO_URL automáticamente cuando agregas MongoDB plugin
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || process.env.MONGODB_CONNECTION_STRING || 'mongodb://localhost:27017/documentos';
+// Railway proporciona MONGO_URL o MONGO_PUBLIC_URL automáticamente cuando agregas MongoDB plugin
+const MONGODB_URI = process.env.MONGODB_URI || 
+                    process.env.MONGO_URL || 
+                    process.env.MONGO_PUBLIC_URL ||
+                    process.env.MONGODB_CONNECTION_STRING || 
+                    'mongodb://localhost:27017/documentos';
 
 // Log de la URL (sin contraseña visible)
 let dbUrlForLog = MONGODB_URI;
@@ -60,6 +64,7 @@ console.log(`   URL: ${dbUrlForLog}`);
 console.log(`   Variables detectadas:`);
 console.log(`   - MONGODB_URI: ${process.env.MONGODB_URI ? '✅ configurada' : '❌ no configurada'}`);
 console.log(`   - MONGO_URL: ${process.env.MONGO_URL ? '✅ configurada' : '❌ no configurada'}`);
+console.log(`   - MONGO_PUBLIC_URL: ${process.env.MONGO_PUBLIC_URL ? '✅ configurada' : '❌ no configurada'}`);
 console.log(`   - MONGODB_CONNECTION_STRING: ${process.env.MONGODB_CONNECTION_STRING ? '✅ configurada' : '❌ no configurada'}`);
 
 mongoose.connect(MONGODB_URI)
