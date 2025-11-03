@@ -1,0 +1,26 @@
+{
+  "name": "document-upload-backend",
+  "version": "1.0.0",
+  "description": "Backend para subir documentos PDF e imágenes",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": ["upload", "files", "mongodb"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.3",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "mongodb": "^6.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+
