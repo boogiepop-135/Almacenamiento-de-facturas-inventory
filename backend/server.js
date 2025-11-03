@@ -44,6 +44,52 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
+// Función para construir el frontend si no existe
+function buildFrontendIfNeeded() {
+  const possibleFrontendDirs = [
+    '/app/frontend',
+    path.join(process.cwd(), '../frontend'),
+    path.join(__dirname, '../frontend'),
+    path.join(__dirname, '../../frontend')
+  ];
+  
+  let frontendDir = null;
+  for (const dir of possibleFrontendDirs) {
+    if (fs.existsSync(dir) && fs.existsSync(path.join(dir, 'package.json'))) {
+      frontendDir = dir;
+      break;
+    }
+  }
+  
+  if (!frontendDir) {
+    console.log('⚠️  No se encontró el directorio del frontend para construir');
+    return false;
+  }
+  
+  const distPath = path.join(frontendDir, 'dist');
+  if (fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'))) {
+    console.log('✅ Frontend ya construido en:', distPath);
+    return true;
+  }
+  
+  console.log('🔨 Construyendo frontend desde:', frontendDir);
+  try {
+    // Cambiar al directorio del frontend y construir
+    const originalCwd = process.cwd();
+    process.chdir(frontendDir);
+    console.log('   Ejecutando: npm ci');
+    execSync('npm ci', { stdio: 'inherit' });
+    console.log('   Ejecutando: npm run build');
+    execSync('npm run build', { stdio: 'inherit' });
+    process.chdir(originalCwd);
+    console.log('✅ Frontend construido exitosamente');
+    return true;
+  } catch (error) {
+    console.error('❌ Error construyendo frontend:', error.message);
+    return false;
+  }
+}
+
 // Servir archivos estáticos del frontend (después de /api para no interferir)
 // Si el frontend está construido en ../frontend/dist, servir esos archivos
 // Intentar múltiples rutas posibles dependiendo de dónde se ejecute el servidor
@@ -67,6 +113,23 @@ for (const possiblePath of possibleFrontendPaths) {
   console.log(`   ${exists ? '✅' : '❌'} ${possiblePath}`);
   if (exists && !frontendPath) {
     frontendPath = possiblePath;
+  }
+}
+
+// Si no se encuentra el frontend, intentar construirlo
+if (!frontendPath) {
+  console.log('⚠️  Frontend no encontrado, intentando construir...');
+  const buildSuccess = buildFrontendIfNeeded();
+  
+  if (buildSuccess) {
+    // Verificar de nuevo después de construir
+    for (const possiblePath of possibleFrontendPaths) {
+      const exists = fs.existsSync(possiblePath);
+      if (exists && !frontendPath) {
+        frontendPath = possiblePath;
+        break;
+      }
+    }
   }
 }
 
