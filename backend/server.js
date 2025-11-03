@@ -46,28 +46,59 @@ app.use('/uploads', express.static('uploads'));
 // Servir archivos estáticos del frontend (después de /api para no interferir)
 // Si el frontend está construido en ../frontend/dist, servir esos archivos
 // Intentar múltiples rutas posibles dependiendo de dónde se ejecute el servidor
+console.log('🔍 Buscando frontend construido...');
+console.log(`   __dirname: ${__dirname}`);
+console.log(`   process.cwd(): ${process.cwd()}`);
+
 const possibleFrontendPaths = [
   path.join(__dirname, '../frontend/dist'),  // Si se ejecuta desde backend/
   path.join(__dirname, '../../frontend/dist'), // Si se ejecuta desde backend/ con raíz diferente
   path.join(process.cwd(), 'frontend/dist'),  // Desde el directorio de trabajo actual
-  path.join(process.cwd(), '../frontend/dist') // Desde el directorio de trabajo padre
+  path.join(process.cwd(), '../frontend/dist'), // Desde el directorio de trabajo padre
+  path.join(process.cwd(), '../../frontend/dist'), // Si cwd está en backend/ y la raíz es dos niveles arriba
+  '/app/frontend/dist',  // Railway puede usar /app como directorio de trabajo
+  '/app/../frontend/dist'  // Alternativa para Railway
 ];
 
 let frontendPath = null;
+console.log('🔍 Verificando rutas posibles:');
 for (const possiblePath of possibleFrontendPaths) {
-  if (fs.existsSync(possiblePath)) {
+  const exists = fs.existsSync(possiblePath);
+  console.log(`   ${exists ? '✅' : '❌'} ${possiblePath}`);
+  if (exists && !frontendPath) {
     frontendPath = possiblePath;
-    break;
   }
 }
 
 if (frontendPath) {
   app.use(express.static(frontendPath));
   console.log('✅ Frontend estático configurado desde:', frontendPath);
+  
+  // Verificar que index.html existe
+  const indexPath = path.join(frontendPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    console.log('✅ index.html encontrado en:', indexPath);
+  } else {
+    console.log('⚠️  index.html NO encontrado en:', indexPath);
+  }
 } else {
-  console.log('⚠️  Frontend no encontrado en ninguna de las rutas posibles:');
-  possibleFrontendPaths.forEach(p => console.log(`   - ${p}`));
-  console.log('   El frontend se construirá durante el deploy');
+  console.log('⚠️  Frontend no encontrado en ninguna de las rutas posibles');
+  console.log('   Verificando estructura de directorios...');
+  
+  // Listar directorios para debugging
+  try {
+    const cwdContents = fs.readdirSync(process.cwd());
+    console.log(`   Contenido de ${process.cwd()}:`, cwdContents);
+  } catch (e) {
+    console.log(`   Error leyendo ${process.cwd()}:`, e.message);
+  }
+  
+  try {
+    const parentContents = fs.readdirSync(path.join(process.cwd(), '..'));
+    console.log(`   Contenido del directorio padre:`, parentContents);
+  } catch (e) {
+    console.log(`   Error leyendo directorio padre:`, e.message);
+  }
 }
 
 // Configuración de MongoDB
@@ -316,23 +347,33 @@ app.get('*', (req, res) => {
   }
   
   // Servir el index.html del frontend
-  // Intentar múltiples rutas posibles
-  const possibleIndexPaths = [
-    path.join(__dirname, '../frontend/dist/index.html'),
-    path.join(__dirname, '../../frontend/dist/index.html'),
-    path.join(process.cwd(), 'frontend/dist/index.html'),
-    path.join(process.cwd(), '../frontend/dist/index.html')
-  ];
-  
+  // Usar frontendPath si ya fue encontrado, sino intentar múltiples rutas
   let indexPath = null;
-  for (const possiblePath of possibleIndexPaths) {
-    if (fs.existsSync(possiblePath)) {
-      indexPath = possiblePath;
-      break;
+  
+  if (frontendPath) {
+    // Si ya encontramos el frontend, usar esa ruta
+    indexPath = path.join(frontendPath, 'index.html');
+  } else {
+    // Intentar múltiples rutas posibles
+    const possibleIndexPaths = [
+      path.join(__dirname, '../frontend/dist/index.html'),
+      path.join(__dirname, '../../frontend/dist/index.html'),
+      path.join(process.cwd(), 'frontend/dist/index.html'),
+      path.join(process.cwd(), '../frontend/dist/index.html'),
+      path.join(process.cwd(), '../../frontend/dist/index.html'),
+      '/app/frontend/dist/index.html',
+      '/app/../frontend/dist/index.html'
+    ];
+    
+    for (const possiblePath of possibleIndexPaths) {
+      if (fs.existsSync(possiblePath)) {
+        indexPath = possiblePath;
+        break;
+      }
     }
   }
   
-  if (indexPath) {
+  if (indexPath && fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
     res.status(404).send(`

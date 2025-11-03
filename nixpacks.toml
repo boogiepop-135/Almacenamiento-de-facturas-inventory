@@ -13,6 +13,7 @@ cmds = [
 [phases.build]
 cmds = [
   "cd frontend && npm run build",
+  "ls -la frontend/dist || echo 'Frontend dist no encontrado'",
   "echo 'Build complete'"
 ]
 
