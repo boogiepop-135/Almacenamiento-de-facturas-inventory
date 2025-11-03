@@ -5,7 +5,7 @@ node = "18"
 nixPkgs = { nodejs = "18" }
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = ["npm ci || npm install"]
 
 [phases.build]
 cmds = ["npm run build"]

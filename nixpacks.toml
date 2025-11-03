@@ -6,8 +6,8 @@ nixPkgs = { nodejs = "18" }
 
 [phases.install]
 cmds = [
-  "cd /app/frontend && npm ci || echo 'Frontend install failed'",
-  "cd /app/backend && npm ci || echo 'Backend install failed'"
+  "cd /app/frontend && (npm ci || npm install) || (echo 'Frontend install failed' && exit 1)",
+  "cd /app/backend && (npm ci || npm install) || (echo 'Backend install failed' && exit 1)"
 ]
 
 [phases.build]

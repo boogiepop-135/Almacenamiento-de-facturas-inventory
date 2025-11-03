@@ -26,21 +26,30 @@ const allowedOrigins = [
   'http://localhost:5173'
 ].filter(Boolean); // Elimina valores undefined/null
 
+// Normalizar origins: agregar https:// si solo tienen el dominio
+const normalizedOrigins = allowedOrigins.map(origin => {
+  // Si el origin no tiene protocolo, agregar https://
+  if (!origin.startsWith('http://') && !origin.startsWith('https://')) {
+    return `https://${origin}`;
+  }
+  return origin;
+});
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Permitir requests sin origin (como mobile apps o curl)
     if (!origin) return callback(null, true);
     
     // Si no hay origins configurados, permitir todos (para desarrollo local)
-    if (allowedOrigins.length === 0) {
+    if (normalizedOrigins.length === 0) {
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin)) {
+    if (normalizedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log(`❌ CORS bloqueado para: ${origin}`);
-      console.log(`   Origins permitidos:`, allowedOrigins);
+      console.log(`   Origins permitidos:`, normalizedOrigins);
       callback(new Error('No permitido por CORS'));
     }
   },
@@ -154,9 +163,10 @@ if (!frontendPath) {
   }
 }
 
+// Guardamos frontendPath para usarlo después, pero NO registramos express.static aquí
+// Lo registraremos DESPUÉS de las rutas de API
 if (frontendPath) {
-  app.use(express.static(frontendPath));
-  console.log('✅ Frontend estático configurado desde:', frontendPath);
+  console.log('✅ Frontend encontrado en:', frontendPath);
   
   // Verificar que index.html existe
   const indexPath = path.join(frontendPath, 'index.html');
@@ -422,44 +432,30 @@ app.delete('/api/files/:fileId', async (req, res) => {
   }
 });
 
-// Ruta catch-all: servir el frontend para todas las rutas que no sean /api
-// Esto debe ir AL FINAL, después de todas las rutas de API
-app.get('*', (req, res) => {
-  // Si la ruta empieza con /api, no servir el frontend
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'Ruta API no encontrada' });
-  }
+// IMPORTANTE: Servir archivos estáticos DESPUÉS de todas las rutas de API
+if (frontendPath) {
+  // Configurar express.static primero para servir archivos estáticos
+  app.use(express.static(frontendPath));
+  console.log('✅ Frontend estático configurado desde:', frontendPath);
   
-  // Servir el index.html del frontend
-  // Usar frontendPath si ya fue encontrado, sino intentar múltiples rutas
-  let indexPath = null;
-  
-  if (frontendPath) {
-    // Si ya encontramos el frontend, usar esa ruta
-    indexPath = path.join(frontendPath, 'index.html');
-  } else {
-    // Intentar múltiples rutas posibles
-    const possibleIndexPaths = [
-      path.join(__dirname, '../frontend/dist/index.html'),
-      path.join(__dirname, '../../frontend/dist/index.html'),
-      path.join(process.cwd(), 'frontend/dist/index.html'),
-      path.join(process.cwd(), '../frontend/dist/index.html'),
-      path.join(process.cwd(), '../../frontend/dist/index.html'),
-      '/app/frontend/dist/index.html',
-      '/app/../frontend/dist/index.html'
-    ];
-    
-    for (const possiblePath of possibleIndexPaths) {
-      if (fs.existsSync(possiblePath)) {
-        indexPath = possiblePath;
-        break;
-      }
+  // Ruta catch-all: servir index.html para rutas SPA
+  // Esto debe ir después de express.static para que primero intente servir archivos estáticos
+  app.get('*', (req, res, next) => {
+    // Si la ruta empieza con /api, no servir el frontend
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Ruta API no encontrada' });
     }
-  }
-  
-  if (indexPath && fs.existsSync(indexPath)) {
+    
+    // Servir index.html para todas las demás rutas
+    const indexPath = path.join(frontendPath, 'index.html');
     res.sendFile(indexPath);
-  } else {
+  });
+} else {
+  // Si no hay frontend construido, devolver error 404
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'Ruta API no encontrada' });
+    }
     res.status(404).send(`
       <html>
         <head><title>Frontend no encontrado</title></head>
@@ -471,8 +467,8 @@ app.get('*', (req, res) => {
         </body>
       </html>
     `);
-  }
-});
+  });
+}
 
 // Crear directorio de uploads si no existe
 if (!fs.existsSync('uploads/temp')) {

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/',  // Asegurar que los assets se carguen desde la raíz
   server: {
     port: 3000,
     proxy: {
@@ -15,6 +16,11 @@ export default defineConfig({
   preview: {
     port: process.env.PORT || 3000,
     host: '0.0.0.0'
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false
   }
 });
 
