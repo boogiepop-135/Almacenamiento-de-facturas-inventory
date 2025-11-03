@@ -12,8 +12,11 @@ cmds = [
 
 [phases.build]
 cmds = [
-  "cd /app && cd frontend && npm run build || echo 'Frontend build failed'",
-  "ls -la /app/frontend/dist || echo 'Frontend dist no encontrado'",
+  "echo '=== Building Frontend ==='",
+  "cd /app/frontend && npm run build",
+  "echo '=== Verificando build ==='",
+  "ls -la /app/frontend/dist || (echo 'ERROR: Frontend dist no encontrado' && exit 1)",
+  "echo '=== Frontend build exitoso ==='",
   "echo 'Backend build complete'"
 ]
 
