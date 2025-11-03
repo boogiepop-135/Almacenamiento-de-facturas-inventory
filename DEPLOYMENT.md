@@ -19,10 +19,13 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
 5. Copia la cadena de conexión (Connection String)
 6. Reemplaza `<password>` con tu contraseña y `<dbname>` con `documentos`
 
-### Opción B: Railway PostgreSQL Plugin
+### Opción B: Railway PostgreSQL Plugin (Recomendado)
 
-1. En tu proyecto de Railway, agrega el plugin de PostgreSQL
-2. Railway te proporcionará automáticamente la variable `DATABASE_URL`
+1. En tu proyecto de Railway, haz clic en **"+ New"** o **"Add Service"**
+2. Selecciona **"Database"** → **"Add PostgreSQL"**
+3. Railway creará automáticamente una base de datos PostgreSQL
+4. Railway te proporcionará automáticamente la variable `DATABASE_URL`
+5. **NO necesitas configurar manualmente** la variable `DATABASE_URL` - Railway lo hace automáticamente
 
 ## 🚀 Paso 2: Desplegar el Backend
 
@@ -33,19 +36,21 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
    - Selecciona tu repositorio
    - Selecciona la carpeta `backend` (o configura el Root Directory en Settings)
 
-2. **Configura las Variables de Entorno:**
+2. **Agrega PostgreSQL a tu proyecto:**
+   - En el mismo proyecto de Railway, haz clic en **"+ New"** o **"Add Service"**
+   - Selecciona **"Database"** → **"Add PostgreSQL"**
+   - Railway creará la base de datos y configurará automáticamente `DATABASE_URL`
+
+3. **Configura las Variables de Entorno:**
    En la sección de Variables de tu servicio de backend, agrega:
    ```
-   DATABASE_URL=tu_cadena_de_conexion_de_postgres
    FRONTEND_URL=https://tu-frontend.railway.app
    ```
 
-   **Nota:** Railway automáticamente proporciona `PORT` y `RAILWAY_PUBLIC_DOMAIN`, no necesitas configurarlos manualmente.
-
-   Si usas PostgreSQL de Railway, usa:
-   ```
-   DATABASE_URL=${{ DATABASE_URL }}
-   ```
+   **Nota:** 
+   - `DATABASE_URL` se configura automáticamente si usas el plugin de PostgreSQL de Railway
+   - `PORT` y `RAILWAY_PUBLIC_DOMAIN` también se proporcionan automáticamente
+   - Si usas PostgreSQL externo, configura: `DATABASE_URL=postgres://usuario:password@host:puerto/base`
 
 3. **Railway automáticamente:**
    - Detectará Node.js (gracias a `package.json`)

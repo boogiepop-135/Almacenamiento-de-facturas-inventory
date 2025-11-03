@@ -43,27 +43,55 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Configuración de PostgreSQL
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgres://postgres:postgres@localhost:5432/documentos';
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined });
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGURI || 'postgres://postgres:postgres@localhost:5432/documentos';
+
+// Log de la URL (sin contraseña visible)
+const dbUrlForLog = DATABASE_URL ? DATABASE_URL.replace(/:[^:@]+@/, ':****@') : 'no configurada';
+console.log('📊 Configuración de PostgreSQL:');
+console.log(`   URL: ${dbUrlForLog}`);
+console.log(`   SSL: ${process.env.PGSSL === 'true' ? 'habilitado' : 'deshabilitado'}`);
+
+// Configurar SSL para Railway/Heroku (requieren SSL)
+const sslConfig = process.env.DATABASE_URL?.includes('railway.app') || 
+                  process.env.DATABASE_URL?.includes('amazonaws.com') ||
+                  process.env.DATABASE_URL?.includes('heroku') ||
+                  process.env.PGSSL === 'true'
+  ? { rejectUnauthorized: false }
+  : undefined;
+
+const pool = new Pool({ 
+  connectionString: DATABASE_URL,
+  ssl: sslConfig
+});
 
 async function ensureSchema() {
-  await pool.query(`
-    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-    CREATE TABLE IF NOT EXISTS documents (
-      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      filename TEXT NOT NULL,
-      mimetype TEXT NOT NULL,
-      size BIGINT NOT NULL,
-      upload_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      data BYTEA NOT NULL
-    );
-  `);
-  console.log('✅ Esquema verificado en PostgreSQL');
+  try {
+    // Probar conexión primero
+    await pool.query('SELECT NOW()');
+    console.log('✅ Conectado a PostgreSQL');
+    
+    // Crear esquema
+    await pool.query(`
+      CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+      CREATE TABLE IF NOT EXISTS documents (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        filename TEXT NOT NULL,
+        mimetype TEXT NOT NULL,
+        size BIGINT NOT NULL,
+        upload_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        data BYTEA NOT NULL
+      );
+    `);
+    console.log('✅ Esquema verificado en PostgreSQL');
+  } catch (error) {
+    console.error('❌ Error verificando esquema de PostgreSQL:', error.message);
+    console.error('   Asegúrate de configurar DATABASE_URL en Railway');
+    console.error('   Si usas Railway PostgreSQL plugin, usa: DATABASE_URL=${{ DATABASE_URL }}');
+    // No salir del proceso, permitir que el servidor corra (puede que la DB se conecte después)
+  }
 }
 
-ensureSchema().catch((error) => {
-  console.error('❌ Error verificando esquema de PostgreSQL:', error);
-});
+ensureSchema();
 
 // Configuración de Multer en memoria (no usa disco)
 const storage = multer.memoryStorage();
