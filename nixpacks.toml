@@ -1,0 +1,21 @@
+[providers]
+node = "18"
+
+[phases.setup]
+nixPkgs = { nodejs = "18" }
+
+[phases.install]
+cmds = [
+  "cd frontend && npm ci",
+  "cd backend && npm ci"
+]
+
+[phases.build]
+cmds = [
+  "cd frontend && npm run build",
+  "echo 'Build complete'"
+]
+
+[start]
+cmd = "cd backend && npm start"
+
