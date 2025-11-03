@@ -19,10 +19,10 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
 5. Copia la cadena de conexión (Connection String)
 6. Reemplaza `<password>` con tu contraseña y `<dbname>` con `documentos`
 
-### Opción B: Railway MongoDB Plugin
+### Opción B: Railway PostgreSQL Plugin
 
-1. En tu proyecto de Railway, agrega el plugin de MongoDB
-2. Railway te proporcionará automáticamente la variable `MONGO_URL`
+1. En tu proyecto de Railway, agrega el plugin de PostgreSQL
+2. Railway te proporcionará automáticamente la variable `DATABASE_URL`
 
 ## 🚀 Paso 2: Desplegar el Backend
 
@@ -36,15 +36,15 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
 2. **Configura las Variables de Entorno:**
    En la sección de Variables de tu servicio de backend, agrega:
    ```
-   MONGODB_URI=tu_cadena_de_conexion_de_mongodb
+   DATABASE_URL=tu_cadena_de_conexion_de_postgres
    FRONTEND_URL=https://tu-frontend.railway.app
    ```
 
    **Nota:** Railway automáticamente proporciona `PORT` y `RAILWAY_PUBLIC_DOMAIN`, no necesitas configurarlos manualmente.
 
-   Si usas MongoDB de Railway, usa:
+   Si usas PostgreSQL de Railway, usa:
    ```
-   MONGODB_URI=${{ MONGO_URL }}
+   DATABASE_URL=${{ DATABASE_URL }}
    ```
 
 3. **Railway automáticamente:**
@@ -93,7 +93,7 @@ Railway reiniciará automáticamente el servicio cuando cambies las variables de
 
 ### Backend
 ```
-MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/documentos
+DATABASE_URL=postgres://usuario:password@host:puerto/base
 FRONTEND_URL=https://tu-frontend.railway.app
 ```
 

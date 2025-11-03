@@ -1,12 +1,11 @@
 import express from 'express';
-import mongoose from 'mongoose';
+import { Pool } from 'pg';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import Document from './models/Document.js';
 
 dotenv.config();
 
@@ -43,33 +42,31 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// Configuración de MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/documentos';
+// Configuración de PostgreSQL
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || 'postgres://postgres:postgres@localhost:5432/documentos';
+const pool = new Pool({ connectionString: DATABASE_URL, ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined });
 
-mongoose.connect(MONGODB_URI)
-  .then(async () => {
-    console.log('✅ Conectado a MongoDB');
-    // Inicializar GridFS
-    const { GridFSBucket } = await import('mongodb');
-    const bucket = new GridFSBucket(mongoose.connection.db, {
-      bucketName: 'archivos'
-    });
-    app.locals.bucket = bucket;
-  })
-  .catch((error) => {
-    console.error('❌ Error conectando a MongoDB:', error);
-  });
+async function ensureSchema() {
+  await pool.query(`
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE TABLE IF NOT EXISTS documents (
+      id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+      filename TEXT NOT NULL,
+      mimetype TEXT NOT NULL,
+      size BIGINT NOT NULL,
+      upload_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      data BYTEA NOT NULL
+    );
+  `);
+  console.log('✅ Esquema verificado en PostgreSQL');
+}
 
-// Configuración de Multer para archivos temporales
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/temp');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
+ensureSchema().catch((error) => {
+  console.error('❌ Error verificando esquema de PostgreSQL:', error);
 });
+
+// Configuración de Multer en memoria (no usa disco)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|gif|pdf/;
@@ -96,50 +93,26 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No se proporcionó ningún archivo' });
     }
 
-    const bucket = app.locals.bucket;
-    const fileStream = bucket.openUploadStream(req.file.originalname, {
-      contentType: req.file.mimetype
-    });
+    const insertResult = await pool.query(
+      'INSERT INTO documents (filename, mimetype, size, data) VALUES ($1, $2, $3, $4) RETURNING id',
+      [req.file.originalname, req.file.mimetype, req.file.size, req.file.buffer]
+    );
 
-    const readStream = fs.createReadStream(req.file.path);
+    const fileId = insertResult.rows[0].id;
 
-    readStream.pipe(fileStream);
+    // Generar URL - usar variable de entorno si está disponible (Railway)
+    const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+      ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+      : `${req.protocol}://${req.get('host')}`;
+    const fileUrl = `${baseUrl}/api/files/${fileId}`;
 
-    fileStream.on('error', (error) => {
-      console.error('Error subiendo archivo a GridFS:', error);
-      fs.unlinkSync(req.file.path); // Eliminar archivo temporal
-      res.status(500).json({ error: 'Error al subir el archivo' });
-    });
-
-    fileStream.on('finish', async () => {
-      // Eliminar archivo temporal
-      fs.unlinkSync(req.file.path);
-
-      // Guardar información del documento en la base de datos
-      const document = new Document({
-        filename: req.file.originalname,
-        fileId: fileStream.id.toString(),
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-        uploadDate: new Date()
-      });
-
-      await document.save();
-
-      // Generar URL - usar variable de entorno si está disponible (Railway)
-      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : `${req.protocol}://${req.get('host')}`;
-      const fileUrl = `${baseUrl}/api/files/${fileStream.id}`;
-
-      res.status(200).json({
-        message: 'Archivo subido exitosamente',
-        fileId: fileStream.id,
-        filename: req.file.originalname,
-        url: fileUrl,
-        size: req.file.size,
-        mimetype: req.file.mimetype
-      });
+    res.status(200).json({
+      message: 'Archivo subido exitosamente',
+      fileId,
+      filename: req.file.originalname,
+      url: fileUrl,
+      size: req.file.size,
+      mimetype: req.file.mimetype
     });
   } catch (error) {
     console.error('Error en la subida:', error);
@@ -150,40 +123,16 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 // Ruta para obtener archivo
 app.get('/api/files/:fileId', async (req, res) => {
   try {
-    const bucket = app.locals.bucket;
-    const ObjectId = mongoose.Types.ObjectId;
-
-    if (!ObjectId.isValid(req.params.fileId)) {
-      return res.status(400).json({ error: 'ID de archivo inválido' });
-    }
-
-    const fileId = new ObjectId(req.params.fileId);
-
-    // Obtener información del archivo primero
-    const cursor = bucket.find({ _id: fileId });
-    const files = await cursor.toArray();
-    
-    if (files.length === 0) {
+    const { fileId } = req.params;
+    const result = await pool.query('SELECT filename, mimetype, data FROM documents WHERE id = $1', [fileId]);
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Archivo no encontrado' });
     }
 
-    const fileInfo = files[0];
-    
-    // Establecer headers antes de iniciar la descarga
-    res.setHeader('Content-Type', fileInfo.contentType || 'application/octet-stream');
-    res.setHeader('Content-Disposition', `inline; filename="${fileInfo.filename}"`);
-
-    // Crear stream de descarga y enviar al cliente
-    const downloadStream = bucket.openDownloadStream(fileId);
-
-    downloadStream.on('error', (error) => {
-      console.error('Error descargando archivo:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: 'Error al descargar el archivo' });
-      }
-    });
-
-    downloadStream.pipe(res);
+    const { filename, mimetype, data } = result.rows[0];
+    res.setHeader('Content-Type', mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.send(Buffer.from(data));
   } catch (error) {
     console.error('Error obteniendo archivo:', error);
     if (!res.headersSent) {
@@ -195,14 +144,18 @@ app.get('/api/files/:fileId', async (req, res) => {
 // Ruta para listar todos los documentos
 app.get('/api/documents', async (req, res) => {
   try {
-    const documents = await Document.find().sort({ uploadDate: -1 });
-    // Generar URL base - usar variable de entorno si está disponible (Railway)
+    const result = await pool.query('SELECT id, filename, mimetype, size, upload_date FROM documents ORDER BY upload_date DESC');
     const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
       ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
       : `${req.protocol}://${req.get('host')}`;
-    const documentsWithUrl = documents.map(doc => ({
-      ...doc.toObject(),
-      url: `${baseUrl}/api/files/${doc.fileId}`
+    const documentsWithUrl = result.rows.map(doc => ({
+      _id: doc.id,
+      fileId: doc.id,
+      filename: doc.filename,
+      mimetype: doc.mimetype,
+      size: Number(doc.size),
+      uploadDate: doc.upload_date,
+      url: `${baseUrl}/api/files/${doc.id}`
     }));
     res.json(documentsWithUrl);
   } catch (error) {
@@ -214,21 +167,8 @@ app.get('/api/documents', async (req, res) => {
 // Ruta para eliminar un documento
 app.delete('/api/files/:fileId', async (req, res) => {
   try {
-    const bucket = app.locals.bucket;
-    const ObjectId = mongoose.Types.ObjectId;
-
-    if (!ObjectId.isValid(req.params.fileId)) {
-      return res.status(400).json({ error: 'ID de archivo inválido' });
-    }
-
-    const fileId = new ObjectId(req.params.fileId);
-    
-    // Eliminar de GridFS
-    await bucket.delete(fileId);
-    
-    // Eliminar de la base de datos
-    await Document.deleteOne({ fileId: req.params.fileId });
-
+    const { fileId } = req.params;
+    await pool.query('DELETE FROM documents WHERE id = $1', [fileId]);
     res.json({ message: 'Archivo eliminado exitosamente' });
   } catch (error) {
     console.error('Error eliminando archivo:', error);
@@ -236,10 +176,7 @@ app.delete('/api/files/:fileId', async (req, res) => {
   }
 });
 
-// Crear directorio de uploads si no existe
-if (!fs.existsSync('uploads/temp')) {
-  fs.mkdirSync('uploads/temp', { recursive: true });
-}
+// No se requiere almacenamiento en disco; multer usa memoria
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
