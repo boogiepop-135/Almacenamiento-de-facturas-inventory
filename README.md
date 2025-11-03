@@ -1,11 +1,11 @@
 # Sistema de Subida de Documentos
 
-Sistema completo para subir documentos PDF e imágenes con almacenamiento en PostgreSQL (columna BYTEA).
+Sistema completo para subir documentos PDF e imágenes con almacenamiento en MongoDB GridFS.
 
 ## 🚀 Características
 
 - ✅ Subida de archivos PDF e imágenes (JPEG, JPG, PNG, GIF)
-- ✅ Almacenamiento en PostgreSQL (BYTEA)
+- ✅ Almacenamiento en MongoDB GridFS
 - ✅ Generación de URLs para acceso a archivos
 - ✅ Interfaz moderna y responsive
 - ✅ Listado de todos los documentos subidos
@@ -35,7 +35,7 @@ npm install
 3. Crea un archivo `.env` basado en `.env.example`:
 ```bash
 PORT=5000
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/documentos
+MONGODB_URI=mongodb://localhost:27017/documentos
 ```
 
 4. Asegúrate de que MongoDB esté corriendo.
@@ -135,9 +135,13 @@ Elimina un archivo por su ID
 
 ## 🔧 Configuración
 
-### PostgreSQL
+### MongoDB
 
-Puedes usar PostgreSQL local o en la nube (Railway/Neon/Supabase). Ajusta la variable `DATABASE_URL` en el archivo `.env`.
+Puedes usar MongoDB local o en la nube (Railway/MongoDB Atlas). Ajusta la variable `MONGODB_URI` en el archivo `.env`:
+
+- Local: `mongodb://localhost:27017/documentos`
+- MongoDB Atlas: `mongodb+srv://usuario:password@cluster.mongodb.net/documentos`
+- Railway: `MONGODB_URI=${{ MONGO_URL }}`
 
 ### Puerto
 
@@ -165,7 +169,7 @@ Para más detalles, consulta `DEPLOYMENT.md`.
 
 ## 📝 Notas
 
-- Los archivos se almacenan en PostgreSQL como `BYTEA`
+- Los archivos se almacenan en MongoDB GridFS, ideal para archivos grandes
 - Los archivos temporales se eliminan automáticamente después de subirlos
 - El límite de tamaño por archivo es de 10MB (configurable en `server.js`)
 

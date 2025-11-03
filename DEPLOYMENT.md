@@ -10,7 +10,19 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
 
 ## 🚀 Paso 1: Preparar MongoDB
 
-### Opción A: MongoDB Atlas (Recomendado)
+### Opción A: Railway MongoDB Plugin (Recomendado)
+
+1. En tu proyecto de Railway, haz clic en **"+ New"** o **"Add Service"**
+2. Selecciona **"Database"** → **"Add MongoDB"**
+3. Railway creará automáticamente una base de datos MongoDB
+4. Railway te proporcionará automáticamente la variable `MONGO_URL`
+5. En las variables de entorno de tu servicio backend, configura:
+   ```
+   MONGODB_URI=${{ MONGO_URL }}
+   ```
+   O simplemente usa `MONGO_URL` directamente (el código detecta ambos)
+
+### Opción B: MongoDB Atlas (Alternativa)
 
 1. Crea una cuenta en [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 2. Crea un nuevo cluster (puedes usar el tier gratuito)
@@ -18,14 +30,7 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
 4. Habilita el acceso desde cualquier IP (0.0.0.0/0) en Network Access
 5. Copia la cadena de conexión (Connection String)
 6. Reemplaza `<password>` con tu contraseña y `<dbname>` con `documentos`
-
-### Opción B: Railway PostgreSQL Plugin (Recomendado)
-
-1. En tu proyecto de Railway, haz clic en **"+ New"** o **"Add Service"**
-2. Selecciona **"Database"** → **"Add PostgreSQL"**
-3. Railway creará automáticamente una base de datos PostgreSQL
-4. Railway te proporcionará automáticamente la variable `DATABASE_URL`
-5. **NO necesitas configurar manualmente** la variable `DATABASE_URL` - Railway lo hace automáticamente
+7. Configura en Railway: `MONGODB_URI=tu_cadena_de_conexion`
 
 ## 🚀 Paso 2: Desplegar el Backend
 
@@ -36,21 +41,22 @@ Esta guía te ayudará a desplegar el proyecto en Railway.
    - Selecciona tu repositorio
    - Selecciona la carpeta `backend` (o configura el Root Directory en Settings)
 
-2. **Agrega PostgreSQL a tu proyecto:**
+2. **Agrega MongoDB a tu proyecto:**
    - En el mismo proyecto de Railway, haz clic en **"+ New"** o **"Add Service"**
-   - Selecciona **"Database"** → **"Add PostgreSQL"**
-   - Railway creará la base de datos y configurará automáticamente `DATABASE_URL`
+   - Selecciona **"Database"** → **"Add MongoDB"**
+   - Railway creará la base de datos y configurará automáticamente `MONGO_URL`
 
 3. **Configura las Variables de Entorno:**
    En la sección de Variables de tu servicio de backend, agrega:
    ```
+   MONGODB_URI=${{ MONGO_URL }}
    FRONTEND_URL=https://tu-frontend.railway.app
    ```
 
    **Nota:** 
-   - `DATABASE_URL` se configura automáticamente si usas el plugin de PostgreSQL de Railway
+   - `MONGO_URL` se configura automáticamente si usas el plugin de MongoDB de Railway
    - `PORT` y `RAILWAY_PUBLIC_DOMAIN` también se proporcionan automáticamente
-   - Si usas PostgreSQL externo, configura: `DATABASE_URL=postgres://usuario:password@host:puerto/base`
+   - Si usas MongoDB Atlas, configura: `MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/documentos`
 
 3. **Railway automáticamente:**
    - Detectará Node.js (gracias a `package.json`)
@@ -98,7 +104,9 @@ Railway reiniciará automáticamente el servicio cuando cambies las variables de
 
 ### Backend
 ```
-DATABASE_URL=postgres://usuario:password@host:puerto/base
+MONGODB_URI=${{ MONGO_URL }}
+# O si usas MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/documentos
 FRONTEND_URL=https://tu-frontend.railway.app
 ```
 
@@ -121,9 +129,11 @@ VITE_API_URL=https://tu-backend.railway.app/api
 ## 🐛 Solución de Problemas
 
 ### Error de conexión a MongoDB
-- Verifica que la cadena de conexión esté correcta
-- Asegúrate de que tu IP esté permitida en MongoDB Atlas
+- Verifica que `MONGODB_URI` esté configurado correctamente
+- Si usas Railway MongoDB plugin, usa: `MONGODB_URI=${{ MONGO_URL }}`
+- Si usas MongoDB Atlas, verifica que tu IP esté permitida en Network Access
 - Verifica que el usuario y contraseña sean correctos
+- Asegúrate de que la URL incluya el nombre de la base de datos al final
 
 ### Error de CORS
 - Verifica que `FRONTEND_URL` en el backend sea correcta (incluye `https://`)
