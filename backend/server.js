@@ -43,6 +43,33 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
+// Servir archivos estáticos del frontend (después de /api para no interferir)
+// Si el frontend está construido en ../frontend/dist, servir esos archivos
+// Intentar múltiples rutas posibles dependiendo de dónde se ejecute el servidor
+const possibleFrontendPaths = [
+  path.join(__dirname, '../frontend/dist'),  // Si se ejecuta desde backend/
+  path.join(__dirname, '../../frontend/dist'), // Si se ejecuta desde backend/ con raíz diferente
+  path.join(process.cwd(), 'frontend/dist'),  // Desde el directorio de trabajo actual
+  path.join(process.cwd(), '../frontend/dist') // Desde el directorio de trabajo padre
+];
+
+let frontendPath = null;
+for (const possiblePath of possibleFrontendPaths) {
+  if (fs.existsSync(possiblePath)) {
+    frontendPath = possiblePath;
+    break;
+  }
+}
+
+if (frontendPath) {
+  app.use(express.static(frontendPath));
+  console.log('✅ Frontend estático configurado desde:', frontendPath);
+} else {
+  console.log('⚠️  Frontend no encontrado en ninguna de las rutas posibles:');
+  possibleFrontendPaths.forEach(p => console.log(`   - ${p}`));
+  console.log('   El frontend se construirá durante el deploy');
+}
+
 // Configuración de MongoDB
 // Railway proporciona MONGO_URL o MONGO_PUBLIC_URL automáticamente cuando agregas MongoDB plugin
 const MONGODB_URI = process.env.MONGODB_URI || 
@@ -277,6 +304,48 @@ app.delete('/api/files/:fileId', async (req, res) => {
   } catch (error) {
     console.error('Error eliminando archivo:', error);
     res.status(500).json({ error: 'Error al eliminar el archivo' });
+  }
+});
+
+// Ruta catch-all: servir el frontend para todas las rutas que no sean /api
+// Esto debe ir AL FINAL, después de todas las rutas de API
+app.get('*', (req, res) => {
+  // Si la ruta empieza con /api, no servir el frontend
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Ruta API no encontrada' });
+  }
+  
+  // Servir el index.html del frontend
+  // Intentar múltiples rutas posibles
+  const possibleIndexPaths = [
+    path.join(__dirname, '../frontend/dist/index.html'),
+    path.join(__dirname, '../../frontend/dist/index.html'),
+    path.join(process.cwd(), 'frontend/dist/index.html'),
+    path.join(process.cwd(), '../frontend/dist/index.html')
+  ];
+  
+  let indexPath = null;
+  for (const possiblePath of possibleIndexPaths) {
+    if (fs.existsSync(possiblePath)) {
+      indexPath = possiblePath;
+      break;
+    }
+  }
+  
+  if (indexPath) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(404).send(`
+      <html>
+        <head><title>Frontend no encontrado</title></head>
+        <body>
+          <h1>Frontend no encontrado</h1>
+          <p>El frontend debe construirse antes de desplegar. Ejecuta:</p>
+          <pre>cd frontend && npm run build</pre>
+          <p>O verifica que el build esté incluido en el proceso de deploy.</p>
+        </body>
+      </html>
+    `);
   }
 });
 

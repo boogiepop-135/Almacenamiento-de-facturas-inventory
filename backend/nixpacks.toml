@@ -5,10 +5,16 @@ node = "18"
 nixPkgs = { nodejs = "18" }
 
 [phases.install]
-cmds = ["npm ci"]
+cmds = [
+  "cd ../frontend && npm ci",
+  "npm ci"
+]
 
 [phases.build]
-cmds = ["echo 'Build complete'"]
+cmds = [
+  "cd ../frontend && npm run build",
+  "echo 'Backend build complete'"
+]
 
 [start]
 cmd = "npm start"
