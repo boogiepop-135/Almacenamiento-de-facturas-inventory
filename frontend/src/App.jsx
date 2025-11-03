@@ -71,21 +71,7 @@ function App() {
     }
   };
 
-  const handleDelete = async (fileId) => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este archivo?')) {
-      return;
-    }
 
-    try {
-      await axios.delete(`${API_URL}/files/${fileId}`);
-      fetchDocuments();
-      if (uploadedFile && uploadedFile.fileId === fileId) {
-        setUploadedFile(null);
-      }
-    } catch (err) {
-      setError('Error al eliminar el archivo');
-    }
-  };
 
   const formatFileSize = (bytes) => {
     if (bytes === 0) return '0 Bytes';
@@ -218,12 +204,6 @@ function App() {
                         className="action-button copy"
                       >
                         Copiar URL
-                      </button>
-                      <button
-                        onClick={() => handleDelete(doc.fileId)}
-                        className="action-button delete"
-                      >
-                        Eliminar
                       </button>
                     </div>
                   </div>
