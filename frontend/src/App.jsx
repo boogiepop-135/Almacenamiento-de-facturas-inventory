@@ -3,7 +3,7 @@ import axios from 'axios';
 import './App.css';
 
 // URL del API - usar variable de entorno en producción o localhost en desarrollo
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://almacenamiento-de-facturas-inventory-production.up.railway.app/api';
 
 function App() {
   const [file, setFile] = useState(null);
