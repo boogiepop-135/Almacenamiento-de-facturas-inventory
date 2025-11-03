@@ -31,9 +31,16 @@ const corsOptions = {
     // Permitir requests sin origin (como mobile apps o curl)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    // Si no hay origins configurados, permitir todos (para desarrollo local)
+    if (allowedOrigins.length === 0) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(`❌ CORS bloqueado para: ${origin}`);
+      console.log(`   Origins permitidos:`, allowedOrigins);
       callback(new Error('No permitido por CORS'));
     }
   },
@@ -77,13 +84,25 @@ function buildFrontendIfNeeded() {
     // Cambiar al directorio del frontend y construir
     const originalCwd = process.cwd();
     process.chdir(frontendDir);
-    console.log('   Ejecutando: npm ci');
-    execSync('npm ci', { stdio: 'inherit' });
+    
+    // Verificar si existe package-lock.json para decidir qué comando usar
+    const hasLockFile = fs.existsSync(path.join(frontendDir, 'package-lock.json'));
+    const installCommand = hasLockFile ? 'npm ci' : 'npm install';
+    
+    console.log(`   Ejecutando: ${installCommand}`);
+    execSync(installCommand, { stdio: 'inherit' });
     console.log('   Ejecutando: npm run build');
     execSync('npm run build', { stdio: 'inherit' });
     process.chdir(originalCwd);
-    console.log('✅ Frontend construido exitosamente');
-    return true;
+    
+    // Verificar que el build fue exitoso
+    if (fs.existsSync(distPath) && fs.existsSync(path.join(distPath, 'index.html'))) {
+      console.log('✅ Frontend construido exitosamente');
+      return true;
+    } else {
+      console.error('❌ El build se completó pero no se encontró dist/index.html');
+      return false;
+    }
   } catch (error) {
     console.error('❌ Error construyendo frontend:', error.message);
     return false;
@@ -104,6 +123,8 @@ const possibleFrontendPaths = [
   path.join(process.cwd(), '../frontend/dist'), // Desde el directorio de trabajo padre (backend -> ../frontend)
   path.join(process.cwd(), '../../frontend/dist'), // Si cwd está en backend/ y la raíz es dos niveles arriba
   path.join(process.cwd(), 'frontend/dist'),  // Desde el directorio de trabajo actual
+  path.join(process.cwd(), '..', 'frontend', 'dist'), // Forma explícita con join
+  path.join(process.cwd(), '..', '..', 'frontend', 'dist'), // Dos niveles arriba
 ];
 
 let frontendPath = null;
