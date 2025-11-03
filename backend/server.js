@@ -44,28 +44,47 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Configuración de MongoDB
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/documentos';
+// Railway proporciona MONGO_URL automáticamente cuando agregas MongoDB plugin
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URL || process.env.MONGODB_CONNECTION_STRING || 'mongodb://localhost:27017/documentos';
 
 // Log de la URL (sin contraseña visible)
-const dbUrlForLog = MONGODB_URI ? MONGODB_URI.replace(/:[^:@]+@/, ':****@') : 'no configurada';
+let dbUrlForLog = MONGODB_URI;
+if (dbUrlForLog && dbUrlForLog.includes('@')) {
+  dbUrlForLog = dbUrlForLog.replace(/:[^:@]+@/, ':****@');
+} else if (dbUrlForLog === 'mongodb://localhost:27017/documentos') {
+  dbUrlForLog = 'localhost (default - verifica variables de entorno)';
+}
+
 console.log('📊 Configuración de MongoDB:');
 console.log(`   URL: ${dbUrlForLog}`);
+console.log(`   Variables detectadas:`);
+console.log(`   - MONGODB_URI: ${process.env.MONGODB_URI ? '✅ configurada' : '❌ no configurada'}`);
+console.log(`   - MONGO_URL: ${process.env.MONGO_URL ? '✅ configurada' : '❌ no configurada'}`);
+console.log(`   - MONGODB_CONNECTION_STRING: ${process.env.MONGODB_CONNECTION_STRING ? '✅ configurada' : '❌ no configurada'}`);
 
 mongoose.connect(MONGODB_URI)
   .then(async () => {
-    console.log('✅ Conectado a MongoDB');
+    console.log('✅ Conectado a MongoDB exitosamente');
     // Inicializar GridFS
     const { GridFSBucket } = await import('mongodb');
     const bucket = new GridFSBucket(mongoose.connection.db, {
       bucketName: 'archivos'
     });
     app.locals.bucket = bucket;
-    console.log('✅ GridFS inicializado');
+    console.log('✅ GridFS inicializado correctamente');
   })
   .catch((error) => {
     console.error('❌ Error conectando a MongoDB:', error.message);
-    console.error('   Asegúrate de configurar MONGODB_URI en Railway');
-    console.error('   Si usas Railway MongoDB plugin, usa: MONGODB_URI=${{ MONGO_URL }}');
+    console.error('');
+    console.error('🔧 Solución:');
+    console.error('   1. Ve a Railway Dashboard → Tu Proyecto');
+    console.error('   2. Haz clic en "+ New" → "Database" → "Add MongoDB"');
+    console.error('   3. En las Variables de tu servicio backend, configura:');
+    console.error('      MONGODB_URI=${{ MONGO_URL }}');
+    console.error('   4. O si prefieres usar MongoDB Atlas, configura:');
+    console.error('      MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/documentos');
+    console.error('');
+    console.error('⚠️  El servidor continuará corriendo, pero no podrá subir archivos hasta conectarse a MongoDB');
   });
 
 // Configuración de Multer para archivos temporales
