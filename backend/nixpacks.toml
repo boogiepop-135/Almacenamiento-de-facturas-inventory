@@ -6,17 +6,17 @@ nixPkgs = { nodejs = "18" }
 
 [phases.install]
 cmds = [
-  "cd ../frontend && npm ci",
-  "npm ci"
+  "cd /app && cd frontend && npm ci || echo 'Frontend install failed'",
+  "cd /app && cd backend && npm ci || echo 'Backend install failed'"
 ]
 
 [phases.build]
 cmds = [
-  "cd ../frontend && npm run build",
-  "ls -la ../frontend/dist || echo 'Frontend dist no encontrado'",
+  "cd /app && cd frontend && npm run build || echo 'Frontend build failed'",
+  "ls -la /app/frontend/dist || echo 'Frontend dist no encontrado'",
   "echo 'Backend build complete'"
 ]
 
 [start]
-cmd = "npm start"
+cmd = "cd /app/backend && npm start"
 

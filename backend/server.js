@@ -51,13 +51,12 @@ console.log(`   __dirname: ${__dirname}`);
 console.log(`   process.cwd(): ${process.cwd()}`);
 
 const possibleFrontendPaths = [
+  '/app/frontend/dist',  // Railway usa /app como directorio raíz
   path.join(__dirname, '../frontend/dist'),  // Si se ejecuta desde backend/
   path.join(__dirname, '../../frontend/dist'), // Si se ejecuta desde backend/ con raíz diferente
-  path.join(process.cwd(), 'frontend/dist'),  // Desde el directorio de trabajo actual
-  path.join(process.cwd(), '../frontend/dist'), // Desde el directorio de trabajo padre
+  path.join(process.cwd(), '../frontend/dist'), // Desde el directorio de trabajo padre (backend -> ../frontend)
   path.join(process.cwd(), '../../frontend/dist'), // Si cwd está en backend/ y la raíz es dos niveles arriba
-  '/app/frontend/dist',  // Railway puede usar /app como directorio de trabajo
-  '/app/../frontend/dist'  // Alternativa para Railway
+  path.join(process.cwd(), 'frontend/dist'),  // Desde el directorio de trabajo actual
 ];
 
 let frontendPath = null;
