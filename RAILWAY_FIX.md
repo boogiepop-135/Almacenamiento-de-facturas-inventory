@@ -1,12 +1,12 @@
-# 🔧 SOLUCIÓN: Error de Nixpacks en Railway
+# 🔧 SOLUCIÓN: Error de Railpack/Nixpacks en Railway
 
 ## ⚠️ El Problema
 
-Railway está analizando la **raíz del repositorio** en lugar de las carpetas `backend/` o `frontend/`. Esto causa el error porque la raíz no tiene un `package.json`.
+Railway está analizando la **raíz del repositorio** en lugar de las carpetas `backend/` o `frontend/`. Esto causa el error porque Railway no puede determinar automáticamente qué construir en un monorepo.
 
-## ✅ La Solución
+## ✅ La Solución OBLIGATORIA
 
-**DEBES configurar el Root Directory en cada servicio de Railway:**
+**DEBES configurar el Root Directory en cada servicio de Railway. Es IMPOSIBLE que funcione sin esto:**
 
 ### Para el Backend:
 
