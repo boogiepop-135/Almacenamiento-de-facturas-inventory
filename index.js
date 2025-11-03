@@ -4,7 +4,7 @@
 
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { spawn } from 'child_process';
+import { createRequire } from 'module';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,18 +13,13 @@ const backendPath = join(__dirname, 'backend', 'server.js');
 console.log('🚀 Starting backend from root directory...');
 console.log('⚠️  Note: For better performance, configure Root Directory to "backend" in Railway Settings');
 
-const server = spawn('node', [backendPath], {
-  cwd: join(__dirname, 'backend'),
-  stdio: 'inherit',
-  env: { ...process.env }
-});
+// Change to backend directory and import server
+process.chdir(join(__dirname, 'backend'));
 
-server.on('error', (error) => {
+// Import the backend server
+import(backendPath).catch((error) => {
   console.error('❌ Error starting server:', error);
+  console.error('Make sure backend dependencies are installed: cd backend && npm install');
   process.exit(1);
-});
-
-server.on('exit', (code) => {
-  process.exit(code || 0);
 });
 
